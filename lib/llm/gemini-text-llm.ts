@@ -10,7 +10,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { Feedback, Question, Turn } from "@/lib/types";
 import { tierForScore, type TextLLM } from "@/lib/llm/text-llm";
 
-const MODEL = "gemini-2.5-flash";
+// NOTE: gemini-2.5-flash was retired for new API keys as of this writing
+// (generateContent returns 404 "no longer available to new users" even
+// though it still appears in the ListModels response). Using the
+// "-latest" alias instead of a pinned dated model avoids repeating this
+// failure mode — Google points the alias at the current recommended flash
+// model, so it survives future retirements without a code change.
+const MODEL = "gemini-flash-latest";
 
 const questionsSchema = {
   type: Type.OBJECT,
