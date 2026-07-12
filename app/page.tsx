@@ -100,14 +100,18 @@ export default function Home() {
         <h1 className="text-2xl font-semibold">AI Voice Mock Interviewer</h1>
         <p className="text-sm text-black/60 dark:text-white/60 mt-1">
           Text loop demo (M1) — paste a job description to generate
-          questions, then paste a transcript to get scored feedback. Voice
-          comes in a later milestone.
+          questions, then paste a transcript to get scored feedback.
         </p>
         {session && (
           <p className="text-xs text-black/40 dark:text-white/40 mt-1">
             Session: {session.id}
           </p>
         )}
+        <p className="text-xs mt-2">
+          <a href="/voice" className="underline">
+            Voice relay demo (M2) →
+          </a>
+        </p>
       </header>
 
       {/* --- Step 1: JD -> Questions --- */}
