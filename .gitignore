@@ -1,0 +1,13 @@
+# Personal / workspace notes — intentionally NOT part of the product repo
+README.md
+career-direction-conclusions.md
+llm-collaboration-rules.md
+
+# Standard
+node_modules/
+.next/
+out/
+dist/
+.env
+.env.*
+.DS_Store
