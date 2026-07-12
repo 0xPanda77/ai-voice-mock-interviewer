@@ -35,6 +35,7 @@ export { base64ToArrayBuffer };
 
 export function connectRelay(
   url: string,
+  onOpen: () => void,
   onEvent: (event: RelayEvent) => void,
   onClose: () => void
 ): RelayClient {
@@ -45,6 +46,12 @@ export function connectRelay(
       ws.send(JSON.stringify(event));
     }
   }
+
+  // The relay only emits session.ready in response to a session.start it
+  // receives — so the client must speak first, once the socket is actually
+  // open (sending synchronously right after `new WebSocket()` would be
+  // silently dropped, since readyState is still CONNECTING at that point).
+  ws.addEventListener("open", () => onOpen());
 
   ws.addEventListener("message", (msg) => {
     try {

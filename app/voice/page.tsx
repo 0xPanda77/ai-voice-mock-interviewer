@@ -74,11 +74,15 @@ export default function VoicePage() {
 
     const relay = connectRelay(
       RELAY_URL,
+      () => {
+        // Socket is actually open now — speak first. The relay only emits
+        // session.ready once it's processed a session.start.
+        relay.sendSessionStart(PLACEHOLDER_QUESTIONS, PLACEHOLDER_JD);
+      },
       (event) => {
         switch (event.type) {
           case "session.ready": {
             setStatus("ready");
-            relay.sendSessionStart(PLACEHOLDER_QUESTIONS, PLACEHOLDER_JD);
             setStatus("in-session");
             startMic(relay);
             break;
