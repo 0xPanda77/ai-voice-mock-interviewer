@@ -25,6 +25,19 @@ import {
 
 const RELAY_URL = process.env.NEXT_PUBLIC_RELAY_URL || "ws://localhost:8787";
 
+// 15-minute hard stop (PRD §10/§15) — bounds real Gemini Live cost per
+// session. Warn in the last 2 minutes so an abrupt end doesn't surprise
+// mid-sentence.
+const SESSION_LIMIT_SECONDS = 15 * 60;
+const SESSION_WARNING_SECONDS = 2 * 60;
+
+function formatCountdown(totalSeconds: number): string {
+  const clamped = Math.max(0, totalSeconds);
+  const m = Math.floor(clamped / 60);
+  const s = clamped % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 // Overall page flow. Distinct from the voice-connection Status below —
 // `stage` tracks where we are in JD -> questions -> voice -> feedback.
 type Stage =
@@ -61,7 +74,13 @@ export default function VoicePage() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [scoreError, setScoreError] = useState<string | null>(null);
 
+  const [secondsRemaining, setSecondsRemaining] = useState(SESSION_LIMIT_SECONDS);
+
   const relayRef = useRef<RelayClient | null>(null);
+  // handleEndSession is defined after this ref would need it (and is
+  // recreated each render), so the timer effect below calls through this
+  // ref rather than depending on the function identity directly.
+  const handleEndSessionRef = useRef<() => void>(() => {});
   const micRef = useRef<MicCapture | null>(null);
   const playerRef = useRef<AudioPlayer | null>(null);
   // Accumulate transcript.delta text per open turn, flush a Turn on turn.end.
@@ -263,6 +282,12 @@ export default function VoicePage() {
     }
   }
 
+  // Keep the ref current every render so the timer effect (which only runs
+  // when voiceStatus changes) always calls the latest handleEndSession
+  // closure — avoids stale jd/transcript captures without re-running the
+  // timer's setInterval setup on every keystroke-driven render.
+  handleEndSessionRef.current = handleEndSession;
+
   async function handleRetryScore() {
     if (transcriptRef.current.length === 0) return;
     setScoreError(null);
@@ -300,6 +325,28 @@ export default function VoicePage() {
     };
   }, []);
 
+  // 15-minute hard stop: reset the countdown when a session enters
+  // "in-session", tick every second, and auto-end (reusing the exact same
+  // handleEndSession path as clicking "End session" — no duplicated logic)
+  // when it hits zero. Only ticks while actually in-session so pauses on
+  // "connecting"/"ready" don't eat into interview time.
+  useEffect(() => {
+    if (voiceStatus !== "in-session") return;
+
+    setSecondsRemaining(SESSION_LIMIT_SECONDS);
+    const interval = setInterval(() => {
+      setSecondsRemaining((prev) => {
+        if (prev <= 1) {
+          handleEndSessionRef.current();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [voiceStatus]);
+
   // Voice session can be (re)started once questions exist and there's no
   // connection currently active/in-flight. Re-entering "questions-ready"
   // stage doesn't happen today (no explicit back action once voice starts),
@@ -312,8 +359,8 @@ export default function VoicePage() {
     voiceStatus !== "in-session";
 
   return (
-    <div className="min-h-screen p-6 sm:p-10 max-w-3xl mx-auto flex flex-col gap-8">
-      <header>
+    <div className="min-h-screen p-6 sm:p-10 max-w-3xl mx-auto flex flex-col gap-6">
+      <header className="pb-6 border-b border-black/10 dark:border-white/10">
         <h1 className="text-2xl font-semibold">AI Voice Mock Interviewer</h1>
         <p className="text-sm text-black/60 dark:text-white/60 mt-1">
           Paste a job description, run a live voice interview on
@@ -329,8 +376,12 @@ export default function VoicePage() {
         </p>
       </header>
 
+      {/* One continuous top-to-bottom flow: JD -> questions -> voice ->
+          feedback. Each step is visually joined by a left rail rather than
+          floating as disconnected cards, so it reads as one screen/one
+          session, not separate pages. */}
       {/* --- Step 1: JD -> Questions --- */}
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-3 pl-4 border-l-2 border-black/10 dark:border-white/15">
         <h2 className="text-lg font-medium">1. Job description</h2>
         <textarea
           className="w-full min-h-[160px] rounded border border-black/15 dark:border-white/20 bg-transparent p-3 text-sm font-mono disabled:opacity-60"
@@ -390,13 +441,41 @@ export default function VoicePage() {
 
       {/* --- Step 2: Live voice interview --- */}
       {stage !== "jd" && stage !== "questions-loading" && (
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-3 pl-4 border-l-2 border-black/10 dark:border-white/15">
           <h2 className="text-lg font-medium">2. Live voice interview</h2>
-          <p className="text-sm">
-            Status: <span className="font-mono">{voiceStatus}</span>
-            {aiSpeaking && <span className="ml-2 text-blue-600">AI speaking…</span>}
-            {meSpeaking && <span className="ml-2 text-green-600">Listening…</span>}
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span
+              className={
+                "font-mono rounded-full px-2.5 py-0.5 text-xs " +
+                (voiceStatus === "in-session"
+                  ? "bg-green-600/15 text-green-700 dark:text-green-400"
+                  : voiceStatus === "error"
+                  ? "bg-red-600/15 text-red-700 dark:text-red-400"
+                  : voiceStatus === "ended"
+                  ? "bg-black/10 dark:bg-white/10 text-black/60 dark:text-white/60"
+                  : "bg-yellow-600/15 text-yellow-700 dark:text-yellow-400")
+              }
+            >
+              {voiceStatus}
+            </span>
+            {aiSpeaking && <span className="text-blue-600">AI speaking…</span>}
+            {meSpeaking && <span className="text-green-600">Listening…</span>}
+            {voiceStatus === "in-session" && (
+              <span
+                data-testid="session-countdown"
+                className={
+                  "tabular-nums ml-auto " +
+                  (secondsRemaining <= SESSION_WARNING_SECONDS
+                    ? "text-red-600 dark:text-red-400 font-semibold"
+                    : "text-black/50 dark:text-white/50")
+                }
+              >
+                {secondsRemaining <= SESSION_WARNING_SECONDS
+                  ? `Ending soon — ${formatCountdown(secondsRemaining)} left`
+                  : `${formatCountdown(secondsRemaining)} left (15-min cap)`}
+              </span>
+            )}
+          </div>
           <div className="flex gap-3">
             <button
               className="self-start rounded-full bg-foreground text-background px-4 py-2 text-sm font-medium disabled:opacity-50"
@@ -423,7 +502,7 @@ export default function VoicePage() {
               No turns captured yet.
             </p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
               {transcript.map((t, i) => (
                 <li key={i} className="text-sm">
                   <span className="font-semibold">
@@ -439,9 +518,11 @@ export default function VoicePage() {
 
       {/* --- Step 3: Feedback --- */}
       {(stage === "scoring" || stage === "scored" || scoreError) && (
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-3 pl-4 border-l-2 border-black/10 dark:border-white/15">
           <h2 className="text-lg font-medium">3. Feedback</h2>
-          {stage === "scoring" && <p className="text-sm">Scoring…</p>}
+          {stage === "scoring" && (
+            <p className="text-sm text-black/60 dark:text-white/60">Scoring…</p>
+          )}
           {scoreError && (
             <div className="flex flex-col gap-2">
               <p className="text-sm text-red-600 dark:text-red-400">
