@@ -70,6 +70,9 @@ Browser (Next.js)  ──WS──►  Relay server (Node)  ──provider WS─�
 **Requirement:** the AI provider can be changed at any time if we find something
 cheaper. App code depends on interfaces, never on a vendor SDK directly.
 
+> See `docs/providers.md` for the practical guide: env flags, valid values,
+> and a concrete walkthrough for adding a new adapter for either seam.
+
 Two seams:
 
 ### 8a. Text LLM (question generation + scoring)
