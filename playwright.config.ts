@@ -10,7 +10,12 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./app/voice/e2e",
-  timeout: 30_000,
+  // M3's full-loop test (voice-page.spec.ts) makes two real Gemini text
+  // calls (/api/questions, /api/score) in addition to the voice-session
+  // steps. Observed real-world latency for each call: usually a few
+  // seconds, occasionally 20-30s+ under load. Generous headroom beyond the
+  // original M2 test's 30s (which had no real text-LLM calls).
+  timeout: 150_000,
   fullyParallel: false,
   workers: 1,
   retries: 0,

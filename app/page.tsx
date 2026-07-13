@@ -7,6 +7,7 @@ import {
   saveSession,
   type Session,
 } from "@/lib/session-store";
+import { fetchQuestions, fetchScore } from "@/lib/api-client";
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
@@ -47,17 +48,9 @@ export default function Home() {
     setQuestionsLoading(true);
     setQuestions([]);
     try {
-      const res = await fetch("/api/questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jd }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || `Request failed (${res.status})`);
-      }
-      setQuestions(data.questions);
-      persist({ jd, questions: data.questions });
+      const questions = await fetchQuestions(jd);
+      setQuestions(questions);
+      persist({ jd, questions });
     } catch (err) {
       setQuestionsError(err instanceof Error ? err.message : "Unknown error.");
     } finally {
@@ -76,17 +69,9 @@ export default function Home() {
           "Could not parse any turns. Use lines like 'AI: ...' and 'Me: ...'."
         );
       }
-      const res = await fetch("/api/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jd, transcript }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || `Request failed (${res.status})`);
-      }
-      setFeedback(data.feedback);
-      persist({ transcript, feedback: data.feedback });
+      const feedback = await fetchScore(jd, transcript);
+      setFeedback(feedback);
+      persist({ transcript, feedback });
     } catch (err) {
       setScoreError(err instanceof Error ? err.message : "Unknown error.");
     } finally {
@@ -109,7 +94,7 @@ export default function Home() {
         )}
         <p className="text-xs mt-2">
           <a href="/voice" className="underline">
-            Voice relay demo (M2) →
+            Live voice interview (real flow) →
           </a>
         </p>
       </header>
