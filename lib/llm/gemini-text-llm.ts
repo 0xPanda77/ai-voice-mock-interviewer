@@ -51,6 +51,28 @@ const scoreSchema = {
   required: ["score", "comments"],
 };
 
+// The Gemini API occasionally returns a transient 503 "high demand" error
+// (observed repeatedly during M4 testing, unrelated to request content) —
+// retry a couple of times with a short backoff before surfacing it as a
+// real failure. Keeps the single-user "ship it" experience from being
+// derailed by a momentary upstream blip.
+async function withTransient503Retry<T>(fn: () => Promise<T>): Promise<T> {
+  const maxAttempts = 3;
+  const delaysMs = [500, 1500];
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const is503 =
+        err instanceof Error && /"code":503|UNAVAILABLE/.test(err.message);
+      if (!is503 || attempt === maxAttempts) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delaysMs[attempt - 1]));
+    }
+  }
+  // Unreachable — loop above always returns or throws.
+  throw new Error("Unreachable retry loop exit.");
+}
+
 function getClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -71,30 +93,32 @@ export class GeminiTextLLM implements TextLLM {
   async generateQuestions(jd: string): Promise<Question[]> {
     const ai = getClient();
 
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                "You are an experienced technical interviewer. Given the job " +
-                "description below, generate 5-7 role-specific interview " +
-                "questions that probe the skills and experience this role " +
-                "actually needs. For each question, optionally include 1-3 " +
-                "short follow-up hints (things a strong interviewer would " +
-                "probe deeper on if the candidate's answer is shallow).\n\n" +
-                `Job description:\n"""\n${jd}\n"""`,
-            },
-          ],
+    const response = await withTransient503Retry(() =>
+      ai.models.generateContent({
+        model: MODEL,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text:
+                  "You are an experienced technical interviewer. Given the job " +
+                  "description below, generate 5-7 role-specific interview " +
+                  "questions that probe the skills and experience this role " +
+                  "actually needs. For each question, optionally include 1-3 " +
+                  "short follow-up hints (things a strong interviewer would " +
+                  "probe deeper on if the candidate's answer is shallow).\n\n" +
+                  `Job description:\n"""\n${jd}\n"""`,
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: questionsSchema,
         },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: questionsSchema,
-      },
-    });
+      })
+    );
 
     const parsed = parseJsonResponse<{ questions: Question[] }>(response.text);
     if (!parsed.questions || !Array.isArray(parsed.questions)) {
@@ -106,34 +130,36 @@ export class GeminiTextLLM implements TextLLM {
   async scoreTranscript(transcript: Turn[], jd: string): Promise<Feedback> {
     const ai = getClient();
 
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                "You are an experienced technical interviewer scoring a " +
-                "finished mock interview transcript against the job " +
-                "description below. Score holistically 0-100 considering " +
-                "three dimensions: (1) communication — clarity, structure, " +
-                "concision; (2) technical depth — correctness, specificity, " +
-                "evidence of real experience; (3) problem-solving structure " +
-                "— clarifying assumptions, breaking the problem down, " +
-                "discussing trade-offs. Return exactly 3 comment bullets, " +
-                "one per dimension, each a single concise sentence.\n\n" +
-                `Job description:\n"""\n${jd}\n"""\n\n` +
-                `Transcript:\n"""\n${transcriptToText(transcript)}\n"""`,
-            },
-          ],
+    const response = await withTransient503Retry(() =>
+      ai.models.generateContent({
+        model: MODEL,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text:
+                  "You are an experienced technical interviewer scoring a " +
+                  "finished mock interview transcript against the job " +
+                  "description below. Score holistically 0-100 considering " +
+                  "three dimensions: (1) communication — clarity, structure, " +
+                  "concision; (2) technical depth — correctness, specificity, " +
+                  "evidence of real experience; (3) problem-solving structure " +
+                  "— clarifying assumptions, breaking the problem down, " +
+                  "discussing trade-offs. Return exactly 3 comment bullets, " +
+                  "one per dimension, each a single concise sentence.\n\n" +
+                  `Job description:\n"""\n${jd}\n"""\n\n` +
+                  `Transcript:\n"""\n${transcriptToText(transcript)}\n"""`,
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: scoreSchema,
         },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: scoreSchema,
-      },
-    });
+      })
+    );
 
     const parsed = parseJsonResponse<{ score: number; comments: string[] }>(
       response.text
