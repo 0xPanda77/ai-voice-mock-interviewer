@@ -27,7 +27,24 @@ export class StubVoiceAdapter implements VoiceAdapter {
     this.connectedWith = config;
     // Simulate the upstream announcing readiness asynchronously, same as a
     // real provider socket's onopen.
-    queueMicrotask(() => this.emit({ type: "session.ready" }));
+    queueMicrotask(() => {
+      // Test-only visibility: echo the systemPrompt we were connected with
+      // back as an "ai" transcript delta before session.ready. This lets an
+      // E2E test running in a separate process (Playwright driving the
+      // browser, which can't reach into this Node process's memory) assert
+      // that the relay actually built its system prompt from the real
+      // generated questions/JD (issue #10's "done when"), not a stale
+      // hardcoded placeholder — without inventing a new debug-only wire
+      // message. Real adapters (e.g. GeminiVoiceAdapter) never do this.
+      this.emit({ type: "turn.start", speaker: "ai" });
+      this.emit({
+        type: "transcript.delta",
+        speaker: "ai",
+        text: `(stub debug systemPrompt) ${config.systemPrompt}`,
+      });
+      this.emit({ type: "turn.end", speaker: "ai" });
+      this.emit({ type: "session.ready" });
+    });
   }
 
   sendAudio(frame: ArrayBuffer): void {
