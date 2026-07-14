@@ -16,7 +16,13 @@ import { tierForScore, type TextLLM } from "@/lib/llm/text-llm";
 // "-latest" alias instead of a pinned dated model avoids repeating this
 // failure mode — Google points the alias at the current recommended flash
 // model, so it survives future retirements without a code change.
-const MODEL = "gemini-flash-latest";
+//
+// Using the "-lite" variant specifically: gemini-flash-latest was observed
+// returning persistent 503 UNAVAILABLE ("high demand") on this key's free
+// tier (2026-07-13), while gemini-flash-lite-latest responded 200 at the
+// same time. Also sidesteps the free-tier "limit: 0" quota now seen on the
+// older pinned 2.0-flash family for this key.
+const MODEL = "gemini-flash-lite-latest";
 
 const questionsSchema = {
   type: Type.OBJECT,

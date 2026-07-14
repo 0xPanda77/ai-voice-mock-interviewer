@@ -62,15 +62,25 @@ If the relay isn't running, voice session connection will fail/hang at
 
 ## Known limitation: Gemini free-tier quota
 
-`gemini-flash-latest` on the free tier is capped at a low daily request
-count (observed: 20 `generateContent` calls/day) and occasionally returns
-transient `503 UNAVAILABLE` ("high demand") errors independent of quota.
-`GeminiTextLLM` (`lib/llm/gemini-text-llm.ts`) now retries a 503 up to 3
+The free tier is capped at a low daily request count and occasionally
+returns transient `503 UNAVAILABLE` ("high demand") errors independent of
+quota. `GeminiTextLLM` (`lib/llm/gemini-text-llm.ts`) retries a 503 up to 3
 times with a short backoff, but a `429 RESOURCE_EXHAUSTED` (quota fully
 used for the day) is not retryable — you'll see an error banner on
 `/voice` and need to wait for the daily reset or move to a paid tier. Each
 real interview prep session uses 2 calls (`/api/questions` +
 `/api/score`), so the free tier covers roughly 10 sessions/day.
+
+**2026-07-13:** switched `MODEL` from `gemini-flash-latest` to
+`gemini-flash-lite-latest` after `gemini-flash-latest` returned persistent
+(not transient — outlasted the 3-attempt retry) `503 UNAVAILABLE` on this
+key, confirmed via direct `curl` against the API. At the same time,
+`gemini-flash-lite-latest` responded `200`, and the older pinned
+`gemini-2.0-flash`/`gemini-2.0-flash-lite` reported free-tier `limit: 0`
+for this key — so `-lite-latest` was the only working option. If this
+model later becomes unavailable too, re-run the same `curl` probe against
+`models?key=...` to find a live alternative before assuming it's a code
+bug.
 
 ## Redeploying
 
