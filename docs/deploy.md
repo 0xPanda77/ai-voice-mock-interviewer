@@ -7,7 +7,7 @@ the WS relay does **not** get its own cloud host (see below).
 ## What's deployed
 
 The Next.js app (frontend + `/api/questions` + `/api/score`) is deployed to
-Vercel: **https://ai-flagship-project.vercel.app**. This is the part that's
+Vercel: **https://ai-voice-mock-interviewer.vercel.app**. This is the part that's
 genuinely serverless-friendly — no long-lived socket needed.
 
 Vercel environment variables set for Production (names only — see Vercel

@@ -5,7 +5,7 @@ real-time, full-duplex **voice** mock interview for that exact role — answer
 out loud, get spoken follow-ups, no backspace, no time to edit. At the end,
 get a score, tier, and short feedback comments on the transcript.
 
-Live demo (text-loop): **https://ai-flagship-project.vercel.app**
+Live demo (text-loop): **https://ai-voice-mock-interviewer.vercel.app**
 (voice mode needs the relay running locally — see below)
 
 ## Why voice, not another chat-based mock interviewer
