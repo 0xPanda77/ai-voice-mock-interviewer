@@ -107,10 +107,6 @@ seam. Adding a new provider means writing one adapter file and registering
 it in one switch statement; see `docs/providers.md` for the exact seam and
 a step-by-step guide.
 
-**Planned:** more voice adapters beyond Gemini Live (e.g. OpenAI Realtime),
-so the voice engine can be swapped per cost/latency/quality without
-touching the browser client or relay protocol.
-
 ## Roadmap
 
 Now that the relay is deployed for anyone to try, the shared free-tier
@@ -120,6 +116,11 @@ Gemini quota is the bottleneck. Not built yet, tracked in `ISSUES.md`:
   everyone else's quota.
 - A UI display of remaining daily request budget (backed by our own
   tracked counter — Gemini doesn't expose live quota via its API).
+- More voice adapters beyond Gemini Live (e.g. OpenAI Realtime), so the
+  voice engine can be swapped per cost/latency/quality — and so a visitor
+  isn't stuck on Gemini's quota specifically. The seam for this already
+  exists (`VoiceAdapter`, see `docs/providers.md`); it's one new adapter
+  file away, not an architecture change.
 
 ## Project docs
 

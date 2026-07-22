@@ -37,3 +37,5 @@ picked up:
   instead of sharing the deployed one.
 - Quota display in the UI: show remaining daily request budget, backed by
   our own tracked counter (Gemini has no live quota-query endpoint).
+- Additional voice adapters beyond Gemini Live (e.g. OpenAI Realtime) —
+  the `VoiceAdapter` seam already supports this; see `docs/providers.md`.

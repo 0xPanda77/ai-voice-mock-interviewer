@@ -110,7 +110,7 @@ to force a restart without a new commit.
 
 ## Roadmap (not yet built)
 
-Two follow-ups from opening the relay up to more than one user, tracked in
+Follow-ups from opening the relay up to more than one user, tracked in
 `ISSUES.md`:
 
 - **Bring-your-own Gemini key**: let a visitor paste their own
@@ -125,3 +125,9 @@ Two follow-ups from opening the relay up to more than one user, tracked in
   daily) somewhere that survives Vercel's stateless functions — e.g. a
   free Upstash Redis or Vercel KV instance — and rendering it, not
   reflecting Google's actual account state.
+- **Additional voice adapters** (e.g. OpenAI Realtime) alongside
+  `GeminiVoiceAdapter`, so a visitor isn't limited to Gemini's free-tier
+  quota specifically — a different `VOICE_PROVIDER` means a different
+  quota pool entirely. The `VoiceAdapter` seam (`relay/voice-adapter.ts`)
+  already exists for exactly this; see `docs/providers.md`'s step-by-step
+  guide for what a new adapter file needs to implement.
