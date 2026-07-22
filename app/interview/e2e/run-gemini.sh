@@ -39,4 +39,4 @@ echo "[run-gemini] waiting for Next.js dev server to respond..."
 npx wait-on -t 60000 "http://localhost:$APP_PORT/voice"
 
 echo "[run-gemini] running Playwright spec (real Gemini Live — short session)..."
-E2E_VOICE_PROVIDER=gemini npx playwright test app/voice/e2e/voice-page.spec.ts
+E2E_VOICE_PROVIDER=gemini npx playwright test app/interview/e2e/voice-page.spec.ts

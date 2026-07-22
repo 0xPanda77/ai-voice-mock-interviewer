@@ -1,13 +1,15 @@
 # Deploy guide
 
-Milestone 4 (issue #11) scope, as actually shippable — see the PR for the
-full scope-cut rationale. Short version: the Next.js app deploys to Vercel;
-the WS relay does **not** get its own cloud host (see below).
+The Next.js app (frontend + `/api/questions` + `/api/score`) deploys to
+Vercel; the WS relay (`relay/server.ts`) deploys to Render — see below for
+why it needed a separate host, and issue #8 for the fuller history (it was
+originally deferred as local-only for a single-user tool; multi-user demo
+access is the reason it's now deployed for real).
 
 ## What's deployed
 
-The Next.js app (frontend + `/api/questions` + `/api/score`) is deployed to
-Vercel: **https://ai-voice-mock-interviewer.vercel.app**. This is the part that's
+The Next.js app is deployed to Vercel:
+**https://ai-voice-mock-interviewer.vercel.app**. This is the part that's
 genuinely serverless-friendly — no long-lived socket needed.
 
 Vercel environment variables set for Production (names only — see Vercel
@@ -15,6 +17,7 @@ dashboard for values, never commit real values to this repo):
 
 - `GEMINI_API_KEY`
 - `TEXT_PROVIDER`
+- `NEXT_PUBLIC_RELAY_URL` — the deployed relay's `wss://` URL (see below)
 
 (Preview-environment env vars are not set as of this deploy — the Vercel
 CLI's non-interactive `env add ... preview` path kept requiring a
@@ -24,41 +27,44 @@ CLI's non-interactive `env add ... preview` path kept requiring a
 owner actually uses; add Preview vars via the dashboard if preview deploys
 ever need to hit `/api/questions`/`/api/score` for real.)
 
-## What's deliberately NOT deployed: the relay
+## The relay: deployed to Render (free tier)
 
-The relay (`relay/server.ts`) stays **local-only, by design**, for now.
-Issue #8 ("decide + provision relay host") was explicitly deferred by the
-repo owner — a long-lived-WebSocket host (Cloud Run / Fly / Railway) means
-real cost and account setup, and for a single-user personal tool it isn't
-worth it yet.
+The relay (`relay/server.ts`) needs a long-lived process (Vercel functions
+can't hold a WebSocket open — PRD §11/§14), so it lives on Render as its
+own Web Service instead. Render's free Web Service tier was picked over
+Fly.io specifically because it needs no card on file; the tradeoff is the
+free instance spins down after ~15 min idle, so a visitor's first
+connection after a quiet period eats a cold-start delay (usually well
+under a minute) before `session.ready` comes back.
 
-`app/voice/page.tsx`'s `NEXT_PUBLIC_RELAY_URL` therefore still defaults to
-`ws://localhost:8787`, even in the deployed build. **This still works
-correctly** for this app's actual usage pattern: there is exactly one user
-(the repo owner), and he will always be the one running both the browser
-tab *and* the relay process, on the same machine. His browser's
-`localhost:8787` WebSocket connects to his own machine's relay process
-regardless of whether the page's HTML/JS was served from Vercel or from
-`localhost:3000` — the frontend's origin doesn't change what `localhost`
-resolves to in the browser making the request.
+**One-time setup** (render.com dashboard):
 
-**In short: voice mode requires running the relay locally, even when using
-the deployed URL.** This is a deliberate personal-tool tradeoff, not a bug —
-see issue #8 for the "why we didn't just deploy it" reasoning.
+1. New → Blueprint → connect this GitHub repo. Render reads `render.yaml`
+   at the repo root and provisions the service (`ai-voice-mock-interviewer-relay`,
+   free plan, `npm run relay:start`) automatically.
+2. Add `GEMINI_API_KEY` in the service's Environment tab — it's marked
+   `sync: false` in `render.yaml` on purpose, so Render always prompts for
+   it rather than expecting it committed anywhere.
+3. Once live, copy the assigned URL (`https://<service>.onrender.com`),
+   swap the scheme to `wss://`, and set that as `NEXT_PUBLIC_RELAY_URL` in
+   Vercel (Production **and** Preview, if you want previews to have working
+   voice mode) — then redeploy the Next.js app so the new env var takes
+   effect (env vars are baked in at build time for `NEXT_PUBLIC_*`).
 
-To use the deployed site's voice mode:
+`relay:start` (`tsx relay/server.ts`, no `--watch`/`--env-file` — Render
+injects env vars directly) is the production counterpart to
+`relay:dev` (which is still what you run locally). The server binds
+whatever port Render assigns via its `PORT` env var (see `relay/server.ts`).
 
-```bash
-npm run relay:dev
-```
+**Local dev is unaffected:** `NEXT_PUBLIC_RELAY_URL` still defaults to
+`ws://localhost:8787` when unset, so `npm run relay:dev` + `npm run dev`
+continues to work exactly as before — you only need the Render deployment
+if you want *other people* to reach voice mode without running the relay
+themselves.
 
-(`relay:dev` now loads `.env` automatically — see the root `package.json` —
-so `GEMINI_API_KEY` is picked up without manually exporting it.) Leave that
-running locally, then open the deployed URL and use `/voice` as normal; the
-browser's WS connection to `ws://localhost:8787` reaches that local process.
-
-If the relay isn't running, voice session connection will fail/hang at
-"connecting" — start the relay first.
+If the relay isn't reachable (wrong URL, service still cold-starting, or
+not deployed at all), voice session connection will fail/hang at
+"connecting" in the UI.
 
 ## Known limitation: Gemini free-tier quota
 
@@ -67,9 +73,11 @@ returns transient `503 UNAVAILABLE` ("high demand") errors independent of
 quota. `GeminiTextLLM` (`lib/llm/gemini-text-llm.ts`) retries a 503 up to 3
 times with a short backoff, but a `429 RESOURCE_EXHAUSTED` (quota fully
 used for the day) is not retryable — you'll see an error banner on
-`/voice` and need to wait for the daily reset or move to a paid tier. Each
-real interview prep session uses 2 calls (`/api/questions` +
-`/api/score`), so the free tier covers roughly 10 sessions/day.
+`/interview` and need to wait for the daily reset or move to a paid tier.
+Each real interview prep session uses 2 calls (`/api/questions` +
+`/api/score`), so the free tier covers roughly 10 sessions/day — and now
+that the relay is deployed for anyone to try, that quota is shared across
+every visitor, not just one person. See "Roadmap" below.
 
 **2026-07-13:** switched `MODEL` from `gemini-flash-latest` to
 `gemini-flash-lite-latest` after `gemini-flash-latest` returned persistent
@@ -84,6 +92,8 @@ bug.
 
 ## Redeploying
 
+Next.js app:
+
 ```bash
 vercel deploy --prod
 ```
@@ -92,3 +102,26 @@ vercel deploy --prod
 project). `/api/questions` and `/api/score` need `GEMINI_API_KEY` and
 `TEXT_PROVIDER` set as Vercel env vars for Production (and Preview, if you
 want previews to work too) — see `vercel env ls` / `vercel env add`.
+
+Relay: Render redeploys automatically on every push to `main` (default
+Blueprint behavior) — no separate command needed. Trigger one manually from
+the service's dashboard (Manual Deploy → Deploy latest commit) if you need
+to force a restart without a new commit.
+
+## Roadmap (not yet built)
+
+Two follow-ups from opening the relay up to more than one user, tracked in
+`ISSUES.md`:
+
+- **Bring-your-own Gemini key**: let a visitor paste their own
+  `GEMINI_API_KEY` (kept client-side, sent per-request) instead of sharing
+  the deployed one — so one person's usage doesn't burn through everyone's
+  shared free-tier quota. Touches `getApiKey()` in both
+  `lib/llm/gemini-text-llm.ts` and `relay/adapters/gemini-voice-adapter.ts`,
+  plus `/api/questions`, `/api/score`, and the relay's `session.start`
+  message.
+- **Quota display in the UI**: Gemini's API has no live "remaining quota"
+  endpoint to query, so this means tracking our own request count (reset
+  daily) somewhere that survives Vercel's stateless functions — e.g. a
+  free Upstash Redis or Vercel KV instance — and rendering it, not
+  reflecting Google's actual account state.

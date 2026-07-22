@@ -8,10 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "relay:dev": "tsx watch --env-file=.env relay/server.ts",
+    "relay:start": "tsx relay/server.ts",
     "relay:test:smoke": "VOICE_PROVIDER=stub tsx relay/test/ws-client-smoke.ts",
     "relay:test:live": "GEMINI_VOICE_TEST_DISABLE_VAD=1 tsx --env-file=.env relay/test/gemini-live-smoke.ts",
-    "e2e:voice:stub": "bash app/voice/e2e/run-stub.sh",
-    "e2e:voice:gemini": "bash app/voice/e2e/run-gemini.sh"
+    "e2e:voice:stub": "bash app/interview/e2e/run-stub.sh",
+    "e2e:voice:gemini": "bash app/interview/e2e/run-gemini.sh"
   },
   "dependencies": {
     "@google/genai": "^2.11.0",

@@ -8,14 +8,19 @@
 //
 // Deliberately a separate long-lived Node process from the Next.js app
 // (Vercel functions can't hold long-lived WebSockets — PRD §11/§14). Run
-// with `npm run relay:dev` (tsx). Cloud hosting for this process is issue
-// #8, explicitly deferred — see README note in the PR description.
+// with `npm run relay:dev` locally, `npm run relay:start` in production
+// (see docs/deploy.md — deployed to Render, issue #8).
 
+import { createServer } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { parseClientEvent, type RelayEvent } from "./protocol";
 import { createVoiceAdapter, type VoiceAdapter } from "./voice-adapter";
 
-const PORT = Number(process.env.RELAY_PORT) || 8787;
+// Render (and most PaaS hosts) assign the port via `PORT` and expect the
+// process to bind to it; RELAY_PORT is the local-dev override name used
+// before this was ever meant to run anywhere else. Prefer PORT so the same
+// build works unmodified in both places.
+const PORT = Number(process.env.PORT || process.env.RELAY_PORT) || 8787;
 const DEFAULT_VOICE = "Puck";
 
 function send(ws: WebSocket, event: RelayEvent): void {
@@ -131,7 +136,17 @@ async function handleConnection(ws: WebSocket): Promise<void> {
 }
 
 export function startRelayServer(port: number = PORT): WebSocketServer {
-  const wss = new WebSocketServer({ port });
+  // A bare `new WebSocketServer({ port })` spins up its own internal HTTP
+  // server with no request handler — plain (non-upgrade) HTTP requests just
+  // hang with no response. That's invisible in local dev, but a cloud
+  // host's HTTP health check (e.g. Render's) is exactly that kind of plain
+  // GET, so it needs an actual reply. Own the HTTP server explicitly and
+  // hand it to WebSocketServer via `{ server }` instead of `{ port }`.
+  const httpServer = createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("ok");
+  });
+  const wss = new WebSocketServer({ server: httpServer });
   wss.on("connection", (ws) => {
     handleConnection(ws).catch((err) => {
       send(ws, {
@@ -140,7 +155,7 @@ export function startRelayServer(port: number = PORT): WebSocketServer {
       });
     });
   });
-  wss.on("listening", () => {
+  httpServer.listen(port, () => {
     console.log(`[relay] listening on ws://localhost:${port}`);
   });
   return wss;

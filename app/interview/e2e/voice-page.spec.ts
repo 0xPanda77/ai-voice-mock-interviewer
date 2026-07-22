@@ -46,7 +46,7 @@ test("full loop: JD -> real questions -> voice session fed those questions -> en
     "This assertion set relies on the stub adapter's deterministic echo behavior; run via run-stub.sh."
   );
 
-  await page.goto("/voice");
+  await page.goto("/interview");
 
   // --- Step 1: JD -> real /api/questions call -------------------------
   await page.getByPlaceholder("Paste the full job description here...").fill(
@@ -63,7 +63,7 @@ test("full loop: JD -> real questions -> voice session fed those questions -> en
   ).toBeEnabled({ timeout: 60_000 });
 
   // Questions rendered as an ordered list of at least one <li>, each with
-  // its question text in a direct <span> child (see app/voice/page.tsx) —
+  // its question text in a direct <span> child (see app/interview/page.tsx) —
   // target that span specifically so we don't pick up nested followupHints
   // text (which the system prompt does not include verbatim).
   const questionItems = page.locator("ol.list-decimal > li");
@@ -138,7 +138,7 @@ test("voice session reaches in-session against the real Gemini Live adapter, fed
     "Only run against real Gemini Live when explicitly requested (costs money — PRD §10); run via run-gemini.sh."
   );
 
-  await page.goto("/voice");
+  await page.goto("/interview");
 
   await page.getByPlaceholder("Paste the full job description here...").fill(
     SAMPLE_JD

@@ -1,6 +1,6 @@
 // Shared browser-side fetch helpers for the two text-LLM HTTP routes
 // (/api/questions, /api/score). Extracted so app/page.tsx (M1 text loop) and
-// app/voice/page.tsx (M3 wired voice flow) both call the same request/parse
+// app/interview/page.tsx (M3 wired voice flow) both call the same request/parse
 // logic instead of duplicating it — both pages hit the exact same routes,
 // only what happens with the result differs (render vs. feed into a voice
 // session).

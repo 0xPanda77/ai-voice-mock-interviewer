@@ -2,7 +2,7 @@
 # Runs the /voice E2E test against the relay's StubVoiceAdapter (no real
 # Gemini Live call — see relay/adapters/stub-voice-adapter.ts). Proves the
 # browser<->relay handshake/protocol works end to end through the actual
-# app/voice/page.tsx code path, not a raw WS test script.
+# app/interview/page.tsx code path, not a raw WS test script.
 #
 # Starts relay/server.ts (VOICE_PROVIDER=stub) and `npm run dev` in the
 # background, waits for both to be reachable, runs the Playwright spec, then
@@ -37,4 +37,4 @@ echo "[run-stub] waiting for Next.js dev server to respond..."
 npx wait-on -t 60000 "http://localhost:$APP_PORT/voice"
 
 echo "[run-stub] running Playwright spec..."
-E2E_VOICE_PROVIDER=stub npx playwright test app/voice/e2e/voice-page.spec.ts
+E2E_VOICE_PROVIDER=stub npx playwright test app/interview/e2e/voice-page.spec.ts

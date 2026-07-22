@@ -1,7 +1,7 @@
-// Playwright config for the M2 verification E2E test (app/voice/e2e/).
+// Playwright config for the M2 verification E2E test (app/interview/e2e/).
 //
 // This does NOT start webServer entries for the relay/Next.js dev server
-// automatically — the test scripts (app/voice/e2e/run-stub.sh,
+// automatically — the test scripts (app/interview/e2e/run-stub.sh,
 // run-gemini.sh) start/stop both processes explicitly around
 // `playwright test`, since the relay needs a specific VOICE_PROVIDER env
 // var set before it boots (see relay/voice-adapter.ts) and we want full
@@ -9,7 +9,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "./app/voice/e2e",
+  testDir: "./app/interview/e2e",
   // M3's full-loop test (voice-page.spec.ts) makes two real Gemini text
   // calls (/api/questions, /api/score) in addition to the voice-session
   // steps. Observed real-world latency for each call: usually a few
@@ -28,7 +28,7 @@ export default defineConfig({
       args: [
         "--use-fake-ui-for-media-stream",
         "--use-fake-device-for-media-stream",
-        `--use-file-for-fake-audio-capture=${__dirname}/app/voice/e2e/fixtures/fake-mic.wav`,
+        `--use-file-for-fake-audio-capture=${__dirname}/app/interview/e2e/fixtures/fake-mic.wav`,
       ],
     },
   },

@@ -28,3 +28,12 @@ Repo: https://github.com/0xPanda77/ai-voice-mock-interviewer
 ## M4 — Ship
 - [#11](https://github.com/0xPanda77/ai-voice-mock-interviewer/issues/11) Single-screen polish + deploy
 - [#12](https://github.com/0xPanda77/ai-voice-mock-interviewer/issues/12) Provider-swap docs + env flags (harden abstraction)
+
+## M5 — Multi-user demo hardening (not yet filed as GitHub issues)
+Follow-ups from deploying the relay to Render for public use (see
+`docs/deploy.md` "Roadmap") — no GitHub issue numbers yet, file them when
+picked up:
+- Bring-your-own Gemini key: let a visitor supply their own `GEMINI_API_KEY`
+  instead of sharing the deployed one.
+- Quota display in the UI: show remaining daily request budget, backed by
+  our own tracked counter (Gemini has no live quota-query endpoint).

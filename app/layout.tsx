@@ -1,21 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
+// Full-monospace direction (deliberate deviation from the design brief's
+// serif/sans split, tried 2026-07-22): Geist Mono everywhere — display,
+// body, and code all use one face.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "AI Voice Mock Interviewer — Text Loop",
+  title: "AI Voice Mock Interviewer",
   description:
-    "Paste a job description, get role-specific interview questions, and score a transcript.",
+    "Paste a job description, get role-specific questions, then run a live voice mock interview and get scored feedback.",
 };
 
 export default function RootLayout({
@@ -25,11 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+      <body className={`${geistMono.variable} antialiased`}>{children}</body>
     </html>
   );
 }

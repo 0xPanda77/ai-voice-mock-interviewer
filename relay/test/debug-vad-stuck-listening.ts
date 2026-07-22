@@ -126,7 +126,7 @@ async function main() {
   // Continuous audio-send loop — mimics mic-capture.ts's unconditional
   // streaming. A queue of real-speech chunks gets spliced in on top of the
   // default noise floor when we want to "speak." Only starts AFTER
-  // session.ready, matching production (app/voice/page.tsx only calls
+  // session.ready, matching production (app/interview/page.tsx only calls
   // startMic() on session.ready) — starting it earlier caused a spurious
   // "audio.chunk before session.start" relay error in an earlier version
   // of this script.
@@ -154,10 +154,10 @@ async function main() {
       type: "session.start",
       questions: [
         { text: "To start, could you introduce yourself and walk me through your background?" },
-        { text: "What drew you to Skreen.ai's mission, and how does this role align with your long-term career goals as an engineer?" },
+        { text: "What drew you to Example.ai's mission, and how does this role align with your long-term career goals as an engineer?" },
         { text: "Could you walk me through a specific AI-powered feature you have built and deployed to production, highlighting the challenges you faced and how you handled them?" },
       ],
-      jdContext: "Full-Stack Developer (AI Engineering) at Skreen.ai.",
+      jdContext: "Full-Stack Developer (AI Engineering) at Example.ai.",
     })
   );
   await waitFor((e) => e.type === "session.ready", "session.ready", 20000);

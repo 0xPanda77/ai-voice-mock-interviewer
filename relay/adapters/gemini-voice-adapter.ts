@@ -288,13 +288,24 @@ export class GeminiVoiceAdapter implements VoiceAdapter {
     }
 
     if (content.turnComplete) {
-      if (this.currentAiTurnOpen) {
-        this.currentAiTurnOpen = false;
-        this.emit({ type: "turn.end", speaker: "ai" });
-      }
+      // Order matters here, not just which turns close. turnComplete fires
+      // once, on the final message of a full round-trip — by then the
+      // model has typically already started generating its NEXT question,
+      // so currentAiTurnOpen and currentMeTurnOpen can both be true at the
+      // same instant: "me" (the candidate's just-finished answer, which
+      // started earlier) and "ai" (the next question, which started later
+      // and is only now wrapping up). Closing "ai" first — as this used to
+      // do — flushed the next question into the transcript array before
+      // the answer that logically preceded it, producing "Q1, Q2, my
+      // answer to Q1" in the UI. Close "me" first so turn.end order tracks
+      // when each turn actually started.
       if (this.currentMeTurnOpen) {
         this.currentMeTurnOpen = false;
         this.emit({ type: "turn.end", speaker: "me" });
+      }
+      if (this.currentAiTurnOpen) {
+        this.currentAiTurnOpen = false;
+        this.emit({ type: "turn.end", speaker: "ai" });
       }
     }
   }

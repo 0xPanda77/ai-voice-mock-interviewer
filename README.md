@@ -5,8 +5,9 @@ real-time, full-duplex **voice** mock interview for that exact role — answer
 out loud, get spoken follow-ups, no backspace, no time to edit. At the end,
 get a score, tier, and short feedback comments on the transcript.
 
-Live demo (text-loop): **https://ai-voice-mock-interviewer.vercel.app**
-(voice mode needs the relay running locally — see below)
+Live demo: **https://ai-voice-mock-interviewer.vercel.app/interview**
+(runs on a shared free-tier Gemini key — if it's out of daily quota, wait
+for the reset or [run it locally](#running-locally) with your own key)
 
 ## Why voice, not another chat-based mock interviewer
 
@@ -38,8 +39,7 @@ below).
 - A standalone Node WebSocket relay for the realtime voice stream
 - Gemini Live (native audio, speech-to-speech) for voice; Gemini for
   question generation + scoring
-- Browser `localStorage` only — no accounts, no database (single-user
-  personal tool, by design)
+- Browser `localStorage` only — no accounts, no database
 
 ## Running locally
 
@@ -66,15 +66,37 @@ npm run dev        # Next.js app — http://localhost:3000
 npm run relay:dev   # WS relay — required for voice mode, http://localhost:8787
 ```
 
-Open `http://localhost:3000/voice`. Voice mode always needs the relay
-running locally, even against a deployed URL — the browser connects to
-`ws://localhost:8787` on its own machine, so the relay and the browser tab
-must be on the same machine. This is a deliberate single-user tradeoff, not
-a bug (see `docs/deploy.md`).
+Open `http://localhost:3000/interview`. `NEXT_PUBLIC_RELAY_URL` defaults to
+`ws://localhost:8787`, so as long as `relay:dev` is running locally, voice
+mode works against your own key — independent of whatever relay the
+deployed site happens to be using.
 
 The Gemini free tier covers roughly 10 interview-prep sessions/day (2 LLM
 calls per session). A `429` after that means the daily quota reset hasn't
 happened yet.
+
+## Deploy your own
+
+Everything here is free-tier: Vercel (frontend + API routes) and Render
+(the WS relay). Full details, including the known cold-start/quota
+tradeoffs, are in `docs/deploy.md` — short version:
+
+1. **Frontend + API routes → Vercel.** Import the repo at
+   [vercel.com/new](https://vercel.com/new), set `GEMINI_API_KEY` and
+   `TEXT_PROVIDER=gemini` as env vars, deploy.
+2. **Relay → Render.** In the Render dashboard: New → Blueprint → connect
+   this repo. `render.yaml` at the repo root defines the service
+   (`ai-voice-mock-interviewer-relay`, free plan) — Render provisions it
+   automatically. Add `GEMINI_API_KEY` in the service's Environment tab
+   (it's deliberately left out of `render.yaml` so it's never asked to be
+   committed anywhere).
+3. **Wire them together.** Copy the Render service's URL, swap `https://`
+   for `wss://`, and set it as `NEXT_PUBLIC_RELAY_URL` in Vercel — then
+   redeploy the frontend (`NEXT_PUBLIC_*` vars are baked in at build time).
+
+Render's free tier spins the relay down after ~15 min idle, so the first
+voice-mode connection after a quiet spell has a cold-start delay before it
+connects — that's expected, not broken.
 
 ## Provider architecture
 
@@ -88,6 +110,16 @@ a step-by-step guide.
 **Planned:** more voice adapters beyond Gemini Live (e.g. OpenAI Realtime),
 so the voice engine can be swapped per cost/latency/quality without
 touching the browser client or relay protocol.
+
+## Roadmap
+
+Now that the relay is deployed for anyone to try, the shared free-tier
+Gemini quota is the bottleneck. Not built yet, tracked in `ISSUES.md`:
+
+- Bring-your-own Gemini key, so a visitor's usage doesn't eat into
+  everyone else's quota.
+- A UI display of remaining daily request budget (backed by our own
+  tracked counter — Gemini doesn't expose live quota via its API).
 
 ## Project docs
 

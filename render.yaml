@@ -1,0 +1,23 @@
+# Render Blueprint for the WS relay (relay/server.ts) — the one piece of
+# this app that can't run on Vercel (long-lived WebSocket, not a function).
+# See docs/deploy.md for the full deploy story and README.md's "Deploy your
+# own" section for the click-by-click version.
+#
+# Deploy: render.com/dashboard -> New -> Blueprint -> pick this repo. Render
+# reads this file and provisions the service below automatically. You still
+# have to paste in GEMINI_API_KEY by hand afterward (see envVars — it's
+# marked sync: false deliberately, so it's never asked for or stored in this
+# repo).
+services:
+  - type: web
+    name: ai-voice-mock-interviewer-relay
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm run relay:start
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: VOICE_PROVIDER
+        value: gemini

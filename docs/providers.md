@@ -88,7 +88,7 @@ or any other caller.
 3. Set `VOICE_PROVIDER=openai-realtime` in the environment.
 
 Done — no changes to `relay/server.ts`, the browser client
-(`app/voice/lib/relay-client.ts`), or any other caller.
+(`app/interview/lib/relay-client.ts`), or any other caller.
 
 ## Sanity-check: no vendor SDK leaks (verified 2026-07-13)
 
@@ -99,8 +99,8 @@ the two adapter files (`lib/llm/gemini-text-llm.ts`,
 - `@google/genai` is imported only in those two files.
 - Every other hit (`lib/config.ts`, `lib/llm/text-llm.ts`,
   `relay/voice-adapter.ts`, `relay/protocol.ts`,
-  `app/voice/lib/audio-playback.ts`, `playwright.config.ts`,
-  `relay/test/gemini-live-smoke.ts`, `app/voice/e2e/voice-page.spec.ts`) is
+  `app/interview/lib/audio-playback.ts`, `playwright.config.ts`,
+  `relay/test/gemini-live-smoke.ts`, `app/interview/e2e/voice-page.spec.ts`) is
   either a comment/doc reference, the string literal `"gemini"` as an env var
   value, or a test file that imports only `ws` + the relay server + the
   normalized protocol types — never the vendor SDK directly.
