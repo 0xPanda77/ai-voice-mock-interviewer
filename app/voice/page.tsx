@@ -25,6 +25,34 @@ import {
 
 const RELAY_URL = process.env.NEXT_PUBLIC_RELAY_URL || "ws://localhost:8787";
 
+// Dev/test shortcut (screening-call-mode branch): skip the real
+// /api/questions call (costs an LLM request and ~seconds of latency every
+// time) when iterating on the voice loop itself — load this fixed
+// screening-call question set instead. Matches what generateQuestions()
+// produces for a Skreen.ai-shaped JD (see lib/llm/gemini-text-llm.ts).
+const TEST_JD = `
+Full-Stack Developer (AI Engineering) at Skreen.ai. Junior-Mid, first
+engineering hire alongside our CTO. Build AI-powered features across our
+recruitment platform: voice AI, intelligent automation, smart search. Work
+with LLMs, prompt design, structured outputs, function calling, simple
+agentic workflows. Full-stack ownership from idea to production.
+`.trim();
+
+const TEST_QUESTIONS: Question[] = [
+  { text: "To start, could you introduce yourself and walk me through your background?" },
+  {
+    text:
+      "What drew you to Skreen.ai's mission, and how does this role align " +
+      "with your long-term career goals as an engineer?",
+  },
+  {
+    text:
+      "Could you walk me through a specific AI-powered feature you have " +
+      "built and deployed to production, highlighting the challenges you " +
+      "faced and how you handled them?",
+  },
+];
+
 // 15-minute hard stop (PRD §10/§15) — bounds real Gemini Live cost per
 // session. Warn in the last 2 minutes so an abrupt end doesn't surprise
 // mid-sentence.
@@ -143,6 +171,27 @@ export default function VoicePage() {
     }
   }
 
+  // Dev/test shortcut — see TEST_JD/TEST_QUESTIONS above. Loads the fixed
+  // question set without calling /api/questions. Keeps whatever JD is
+  // already typed in (so it doesn't clobber a real JD mid-edit); only
+  // falls back to TEST_JD when the field is empty.
+  function handleUseTestQuestions() {
+    const jdToUse = jd.trim().length > 0 ? jd : TEST_JD;
+    setQuestionsError(null);
+    setJd(jdToUse);
+    setQuestions(TEST_QUESTIONS);
+    setTranscript([]);
+    transcriptRef.current = [];
+    setFeedback(null);
+    persist({
+      jd: jdToUse,
+      questions: TEST_QUESTIONS,
+      transcript: [],
+      feedback: null,
+    });
+    setStage("questions-ready");
+  }
+
   async function handleStartVoiceSession() {
     setVoiceError(null);
     setTranscript([]);
@@ -208,6 +257,14 @@ export default function VoicePage() {
             break;
           }
           case "transcript.delta": {
+            // Gemini Live's transcription deltas arrive at sub-word
+            // granularity (e.g. "de", "velo", "per" for "developer") and
+            // already carry their own leading space at real word
+            // boundaries (tokenizer convention) — a "fix" that forced a
+            // space between every pair of fragments lacking boundary
+            // whitespace (2026-07-22) actually broke words apart ("de
+            // velo per mo stly"). Plain concatenation is correct: trust
+            // Gemini's own spacing.
             pendingTextRef.current[event.speaker] += event.text;
             break;
           }
@@ -402,6 +459,14 @@ export default function VoicePage() {
             }
           >
             {stage === "questions-loading" ? "Generating..." : "Generate questions"}
+          </button>
+          <button
+            className="self-start rounded-full border border-black/15 dark:border-white/20 px-4 py-2 text-sm font-medium disabled:opacity-50"
+            onClick={handleUseTestQuestions}
+            disabled={stage === "questions-loading" || stage === "voice" || stage === "scoring"}
+            title="Load 3 fixed screening-call questions without calling the LLM"
+          >
+            Use test questions
           </button>
           {(stage === "questions-ready" ||
             stage === "voice" ||

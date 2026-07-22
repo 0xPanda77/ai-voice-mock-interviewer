@@ -41,7 +41,13 @@
 //     escape hatch confined to this adapter file; it is never set in normal
 //     product operation and does not appear in .env.example.
 
-import { GoogleGenAI, Modality, type Session as GeminiLiveSession } from "@google/genai";
+import {
+  EndSensitivity,
+  GoogleGenAI,
+  Modality,
+  type AutomaticActivityDetection,
+  type Session as GeminiLiveSession,
+} from "@google/genai";
 import type { RelayEvent } from "../protocol";
 import type { VoiceAdapter, VoiceAdapterConfig } from "../voice-adapter";
 
@@ -51,11 +57,35 @@ import type { VoiceAdapter, VoiceAdapterConfig } from "../voice-adapter";
 const MODEL = "gemini-2.5-flash-native-audio-preview-09-2025";
 const DEFAULT_OUTPUT_SAMPLE_RATE = 24000;
 
+// Gemini Live's own VAD default is END_SENSITIVITY_HIGH ("ends speech more
+// often" — see @google/genai's EndSensitivity doc comment), which reads
+// brief pauses/breaths mid-answer as end-of-turn. Observed in manual
+// screening-call testing (2026-07-17): the model kept starting to talk
+// over the candidate mid-sentence, producing a transcript full of
+// truncated "Interviewer: ..." fragments before getting barge-in-cut-off
+// by the candidate continuing to speak. LOW sensitivity fixes this — costs
+// a bit more perceived latency before the AI responds, which is the right
+// trade for a spoken interview where being talked over is worse than a
+// beat of extra silence.
+//
+// silenceDurationMs dialed back from 2000 to 1000 (2026-07-19): after
+// fixing a separate "stuck listening" bug (client-side noise gate, see
+// public/worklets/pcm-recorder-worklet.js) it was still measured taking
+// ~10-13s to commit end-of-turn after a long (~44s) answer, even with true
+// silence following it — the delay scales with prior utterance length,
+// and silenceDurationMs is the direct lever for it. 1000ms trades back
+// some of the interruption-resistance from the fix above in exchange for
+// cutting that residual delay; re-tune if premature interruptions reappear.
+const PRODUCT_ACTIVITY_DETECTION: AutomaticActivityDetection = {
+  endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+  silenceDurationMs: 1000,
+};
+
 function getApiKey(): string {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "GEMINI_API_KEY is not set. Add it to your environment (see .env.example)."
+      "GEMINI_API_KEY is not set. Add it to your environment (see .env.example).",
     );
   }
   return apiKey;
@@ -72,6 +102,22 @@ function sampleRateFromMimeType(mimeType: string | undefined): number {
 function testVadDisabled(): boolean {
   return process.env.GEMINI_VOICE_TEST_DISABLE_VAD === "1";
 }
+
+// Bug fix (2026-07-22): the model never spoke first — automatic VAD only
+// responds to detected user audio via sendRealtimeInput, and nothing ever
+// prompted it otherwise, so the candidate had to say something before the
+// AI made a sound. `sendClientContent` (see @google/genai's
+// node_modules/@google/genai/dist/node/node.d.ts Session#sendClientContent
+// doc comment) is the documented way to inject synthetic non-audio content
+// into the conversation and ask for a response — its own example is
+// literally `sendClientContent({turns: "Hello?"})`. This is a TEXT turn,
+// not audio: it does NOT go through sendRealtimeInput, so it can never
+// trigger inputAudioTranscription (audio-only, see handleServerMessage)
+// and therefore can never be misattributed as a "me" (candidate) turn in
+// the UI — only a real spoken response to it will, correctly, come back
+// as an "ai" turn.
+const KICKOFF_TURN =
+  "Begin the call now — greet the candidate and ask the first prepared question.";
 
 // Test-only: when VAD is disabled (see testVadDisabled), we still need to
 // mark activity boundaries ourselves. Debounce activityEnd this long after
@@ -111,13 +157,11 @@ export class GeminiVoiceAdapter implements VoiceAdapter {
         },
         inputAudioTranscription: {},
         outputAudioTranscription: {},
-        ...(testVadDisabled()
-          ? {
-              realtimeInputConfig: {
-                automaticActivityDetection: { disabled: true },
-              },
-            }
-          : {}),
+        realtimeInputConfig: {
+          automaticActivityDetection: testVadDisabled()
+            ? { disabled: true }
+            : PRODUCT_ACTIVITY_DETECTION,
+        },
       },
       callbacks: {
         onopen: () => {
@@ -152,6 +196,16 @@ export class GeminiVoiceAdapter implements VoiceAdapter {
         },
       },
     });
+
+    // Speak first (see KICKOFF_TURN above). Safe to send immediately here:
+    // @google/genai's ai.live.connect() promise (awaited above) does not
+    // resolve until it has itself received setupComplete — it queues
+    // messages internally and only returns the Session once that happens
+    // (verified against node_modules/@google/genai/dist/node/index.cjs's
+    // Live.connect() implementation) — so `this.session` is guaranteed to
+    // be a live, setup-complete session by this line, and "session.ready"
+    // has already been emitted above via the onmessage callback.
+    this.session.sendClientContent({ turns: KICKOFF_TURN, turnComplete: true });
   }
 
   private handleServerMessage(message: {
@@ -179,7 +233,7 @@ export class GeminiVoiceAdapter implements VoiceAdapter {
       // (e.g. a synthetic sine tone that VAD doesn't treat as speech).
       console.log(
         "[gemini-voice-adapter] usageMetadata:",
-        JSON.stringify(message.usageMetadata)
+        JSON.stringify(message.usageMetadata),
       );
     }
 
