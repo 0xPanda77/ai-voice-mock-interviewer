@@ -1,28 +1,10 @@
 import Link from "next/link";
+import { GITHUB_URL, SiteFooter, SiteHeader } from "./site-chrome";
 
 // Landing page — describes the product and its user journey. The actual
 // product lives at /interview (JD -> questions -> live voice interview ->
 // scored feedback); this page's only job is to get a visitor to understand
 // that flow in one scroll and start it.
-
-function WaveMark({ className = "" }: { className?: string }) {
-  // A small four-bar waveform — this product's own mark (not Anthropic's
-  // spike glyph). Ties the "voice" idea directly into the wordmark.
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      width="20"
-      height="20"
-      className={className}
-      aria-hidden="true"
-    >
-      <rect x="1" y="7" width="3" height="6" rx="1.5" fill="currentColor" />
-      <rect x="6.5" y="3" width="3" height="14" rx="1.5" fill="currentColor" />
-      <rect x="12" y="5.5" width="3" height="9" rx="1.5" fill="currentColor" />
-      <rect x="17" y="8.5" width="2" height="3" rx="1" fill="currentColor" />
-    </svg>
-  );
-}
 
 const JOURNEY_STEPS = [
   {
@@ -66,18 +48,11 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col">
       {/* --- Top nav --- */}
-      <header className="border-b border-hairline">
-        <div className="max-w-[1200px] mx-auto h-16 px-6 flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 type-title-sm text-ink"
-          >
-            <WaveMark className="text-primary" />
-            AI Voice Mock Interviewer
-          </Link>
-          <div className="flex items-center gap-4">
+      <SiteHeader
+        right={
+          <>
             <a
-              href="https://github.com/0xPanda77/ai-voice-mock-interviewer"
+              href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="type-body-sm text-muted hover:text-ink transition-colors"
@@ -90,9 +65,9 @@ export default function LandingPage() {
             >
               Start a mock interview
             </Link>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {/* --- Hero --- */}
       <section className="bg-canvas">
@@ -221,21 +196,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- Footer --- */}
-      <footer className="bg-surface-dark">
-        <div className="max-w-[1200px] mx-auto px-6 py-12 flex flex-wrap items-center justify-between gap-4">
-          <span className="flex items-center gap-2 type-body-sm text-on-dark">
-            <WaveMark className="text-primary" />
-            AI Voice Mock Interviewer
-          </span>
-          <a
-            href="https://github.com/0xPanda77/ai-voice-mock-interviewer"
-            className="type-body-sm text-on-dark-soft hover:text-on-dark transition-colors"
-          >
-            Source on GitHub ↗
-          </a>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

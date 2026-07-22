@@ -9,10 +9,10 @@
 //
 // app/page.tsx is the marketing landing page; this is the product itself.
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Feedback, Question, Turn } from "@/lib/types";
 import { fetchQuestions, fetchScore } from "@/lib/api-client";
+import { SiteFooter, SiteHeader } from "../site-chrome";
 import { connectRelay, base64ToArrayBuffer, type RelayClient } from "./lib/relay-client";
 import { startMicCapture, type MicCapture } from "./lib/mic-capture";
 import { createAudioPlayer, type AudioPlayer } from "./lib/audio-playback";
@@ -89,6 +89,74 @@ type VoiceStatus =
   | "error"
   | "ended";
 
+// Step 2's focal point: a breathing orb that reads as "something is
+// listening" while connecting/waiting, and visibly reacts (color + faster
+// pulse) to whoever's actually talking — makes the live session feel like a
+// real back-and-forth rather than a status badge and a transcript.
+function VoiceOrb({
+  voiceStatus,
+  aiSpeaking,
+  meSpeaking,
+}: {
+  voiceStatus: VoiceStatus;
+  aiSpeaking: boolean;
+  meSpeaking: boolean;
+}) {
+  const connected =
+    voiceStatus === "connecting" ||
+    voiceStatus === "ready" ||
+    voiceStatus === "in-session";
+  const speaking = aiSpeaking || meSpeaking;
+
+  const colorClass = aiSpeaking
+    ? "bg-primary"
+    : meSpeaking
+    ? "bg-accent-teal"
+    : "bg-muted-soft";
+
+  const label = aiSpeaking
+    ? "Interviewer speaking…"
+    : meSpeaking
+    ? "Listening to you…"
+    : voiceStatus === "connecting"
+    ? "Connecting…"
+    : voiceStatus === "in-session" || voiceStatus === "ready"
+    ? "Waiting…"
+    : voiceStatus === "error"
+    ? "Connection error"
+    : "Not connected";
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-8">
+      <div className="relative flex items-center justify-center h-32 w-32">
+        {connected && (
+          <>
+            <span
+              className={`absolute h-20 w-20 rounded-full voice-orb-ring ${colorClass} ${
+                speaking ? "is-active" : ""
+              }`}
+            />
+            <span
+              className={`absolute h-20 w-20 rounded-full voice-orb-ring ${colorClass} ${
+                speaking ? "is-active" : ""
+              }`}
+              style={{ animationDelay: "0.7s" }}
+            />
+          </>
+        )}
+        <span
+          className={`relative h-16 w-16 rounded-full voice-orb-core ${colorClass} ${
+            speaking ? "is-active" : ""
+          } ${!connected ? "opacity-30" : ""}`}
+        />
+      </div>
+      <span className="type-caption text-muted" role="status">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export default function VoicePage() {
   const [session, setSession] = useState<Session | null>(null);
 
@@ -97,6 +165,11 @@ export default function VoicePage() {
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
+  // Explicit "user has chosen to move on from reviewing questions to the
+  // interview" flag — independent of `stage`, since `stage` alone
+  // ("questions-ready") can be reached without the user having asked to
+  // proceed past the review screen (see currentStep below).
+  const [enteredStep2, setEnteredStep2] = useState(false);
 
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -172,6 +245,7 @@ export default function VoicePage() {
       transcriptRef.current = [];
       setFeedback(null);
       persist({ jd, questions: TEST_QUESTIONS, transcript: [], feedback: null });
+      setEnteredStep2(true);
       await startVoiceSession(TEST_QUESTIONS, jd);
       return;
     }
@@ -188,10 +262,27 @@ export default function VoicePage() {
       setFeedback(null);
       persist({ jd, questions: generated, transcript: [], feedback: null });
       setStage("questions-ready");
+      // Merged CTA (see handleContinueToInterview): generating questions and
+      // advancing to step 2 is now one click, so land directly on step 2
+      // instead of pausing on the step-1 review screen.
+      setEnteredStep2(true);
     } catch (err) {
       setQuestionsError(err instanceof Error ? err.message : "Unknown error.");
       setStage("jd");
     }
+  }
+
+  // Single step-1 CTA: generates questions (if none exist yet) and advances
+  // to step 2 in one click — the user shouldn't have to separately ask for
+  // questions before continuing. If questions already exist (e.g. after
+  // "Use example job description" or returning via "Start over"/"Try
+  // again"), skip straight to step 2.
+  async function handleContinueToInterview() {
+    if (questions.length > 0) {
+      setEnteredStep2(true);
+      return;
+    }
+    await handleGenerateQuestions();
   }
 
   // "Use example job description" shortcut — see TEST_JD/TEST_QUESTIONS
@@ -213,6 +304,7 @@ export default function VoicePage() {
       feedback: null,
     });
     setStage("questions-ready");
+    setEnteredStep2(false);
   }
 
   // Shared by handleStartVoiceSession (real flow: whatever's currently in
@@ -315,6 +407,17 @@ export default function VoicePage() {
     await startVoiceSession(questions, jd);
   }
 
+  // Step 2's "Back to job description" — only enabled when there's no
+  // live/in-flight connection (see disabled= on the button below), so a
+  // user can't silently abandon an active session; they must "End session"
+  // first.
+  function handleBackToJobDescription() {
+    setEnteredStep2(false);
+    if (stage === "voice") {
+      setStage("questions-ready");
+    }
+  }
+
   async function startMic(relay: RelayClient) {
     try {
       const mic = await startMicCapture((frame) => {
@@ -402,6 +505,7 @@ export default function VoicePage() {
     setVoiceError(null);
     setVoiceStatus("idle");
     setStage("jd");
+    setEnteredStep2(false);
     persist({ jd: "", questions: [], transcript: [], feedback: null });
   }
 
@@ -417,6 +521,7 @@ export default function VoicePage() {
     setVoiceError(null);
     setVoiceStatus("idle");
     setStage(questions.length > 0 ? "questions-ready" : "jd");
+    setEnteredStep2(questions.length > 0);
     persist({ transcript: [], feedback: null });
   }
 
@@ -461,22 +566,21 @@ export default function VoicePage() {
     voiceStatus !== "ready" &&
     voiceStatus !== "in-session";
 
-  // Wizard: only one step's content is visible at a time. Derived purely
-  // from `stage` (+ scoreError, which can be set while stage has fallen
-  // back to "voice" after a failed score/retry — see handleEndSession /
-  // handleRetryScore) rather than tracked as its own state, so there's no
-  // separate step value that can drift out of sync with `stage`.
+  // Wizard: only one step's content is visible at a time. Derived from
+  // `stage` (+ scoreError, which can be set while stage has fallen back to
+  // "voice" after a failed score/retry — see handleEndSession /
+  // handleRetryScore) plus `enteredStep2`.
   //
-  // "questions-ready" counts as step 2, not step 1: the Step 2 section
-  // (below) is where the "Start voice session" button lives, and that
-  // button needs to be reachable as soon as questions exist — otherwise
-  // there's no way to ever start the interview once past step 1.
+  // "questions-ready" alone stays on step 1 (review the JD/questions) until
+  // the user explicitly advances via "Continue to interview" (sets
+  // enteredStep2 — see Step 1 JSX); `stage === "voice"` (a real voice
+  // connection being established/active) always shows step 2 regardless.
   const currentStep: 1 | 2 | 3 =
     stage === "scoring" || stage === "scored" || scoreError
       ? 3
-      : stage === "jd" || stage === "questions-loading"
-      ? 1
-      : 2;
+      : stage === "voice" || (stage === "questions-ready" && enteredStep2)
+      ? 2
+      : 1;
 
   const statusBadgeClass =
     "font-mono rounded-full px-3 py-1 type-caption " +
@@ -490,29 +594,17 @@ export default function VoicePage() {
 
   return (
     <div className="min-h-screen bg-canvas flex flex-col">
-      <header className="border-b border-hairline">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-2">
-          <Link href="/" className="type-title-sm text-ink">
-            AI Voice Mock Interviewer
-          </Link>
-          <div className="flex items-center gap-4">
-            <span className="type-caption text-muted-soft font-mono">
-              Relay: {RELAY_URL}
-              {session && <> &middot; Session: {session.id}</>}
-            </span>
-            <a
-              href="https://github.com/0xPanda77/ai-voice-mock-interviewer"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="type-caption text-muted hover:text-ink transition-colors"
-            >
-              GitHub
-            </a>
-          </div>
-        </div>
-      </header>
+      <SiteHeader
+        fixed
+        right={
+          <span className="type-caption text-muted-soft font-mono truncate">
+            Relay: {RELAY_URL}
+            {session && <> &middot; Session: {session.id}</>}
+          </span>
+        }
+      />
 
-      <div className="max-w-3xl mx-auto w-full px-6 py-12 flex flex-col gap-10">
+      <div className="max-w-3xl mx-auto w-full px-6 pt-28 pb-24 flex flex-col gap-10">
         {/* --- Progress bar: pure visual indicator of the current wizard
             step, not clickable / no back-navigation (see page-level notes
             on why step-click nav is out of scope). --- */}
@@ -577,7 +669,7 @@ export default function VoicePage() {
           <div className="flex flex-wrap gap-3">
             <button
               className="self-start h-10 px-5 rounded-md bg-primary text-on-primary type-body-sm font-medium hover:bg-primary-active disabled:bg-primary-disabled disabled:text-muted transition-colors"
-              onClick={handleGenerateQuestions}
+              onClick={handleContinueToInterview}
               disabled={
                 stage === "questions-loading" ||
                 stage === "voice" ||
@@ -585,7 +677,7 @@ export default function VoicePage() {
                 jd.trim().length === 0
               }
             >
-              {stage === "questions-loading" ? "Generating..." : "Generate questions"}
+              {stage === "questions-loading" ? "Generating..." : "Continue to interview"}
             </button>
             <button
               className="self-start h-10 px-5 rounded-md border border-hairline bg-canvas text-ink type-body-sm font-medium hover:bg-surface-soft disabled:opacity-50 transition-colors"
@@ -611,22 +703,9 @@ export default function VoicePage() {
           {questionsError && (
             <p className="type-body-sm text-error">{questionsError}</p>
           )}
-          {questions.length > 0 && (
-            <ol className="list-decimal list-inside flex flex-col gap-3 mt-2 bg-surface-card rounded-lg p-6">
-              {questions.map((q, i) => (
-                <li key={i} className="type-body-sm text-ink">
-                  <span>{q.text}</span>
-                  {q.followupHints && q.followupHints.length > 0 && (
-                    <ul className="list-disc list-inside ml-5 mt-1 text-muted">
-                      {q.followupHints.map((h, j) => (
-                        <li key={j}>{h}</li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
+          {/* Questions are intentionally not shown here — a mock interview
+              shouldn't hand the user the script in advance. May resurface
+              (e.g. topics-only) later; for now just hidden. */}
         </section>
         )}
 
@@ -665,7 +744,25 @@ export default function VoicePage() {
                 </span>
               )}
             </div>
+
+            <VoiceOrb
+              voiceStatus={voiceStatus}
+              aiSpeaking={aiSpeaking}
+              meSpeaking={meSpeaking}
+            />
+
             <div className="flex gap-3">
+              <button
+                className="self-start h-10 px-5 rounded-md border border-hairline bg-canvas text-ink type-body-sm font-medium hover:bg-surface-soft disabled:opacity-50 transition-colors"
+                onClick={handleBackToJobDescription}
+                disabled={
+                  voiceStatus === "connecting" ||
+                  voiceStatus === "ready" ||
+                  voiceStatus === "in-session"
+                }
+              >
+                Back to job description
+              </button>
               <button
                 className="self-start h-10 px-5 rounded-md bg-primary text-on-primary type-body-sm font-medium hover:bg-primary-active disabled:bg-primary-disabled disabled:text-muted transition-colors"
                 onClick={handleStartVoiceSession}
@@ -768,6 +865,8 @@ export default function VoicePage() {
           </section>
         )}
       </div>
+
+      <SiteFooter fixed />
     </div>
   );
 }
