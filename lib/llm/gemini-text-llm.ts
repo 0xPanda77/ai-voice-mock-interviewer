@@ -24,11 +24,20 @@ import { tierForScore, type TextLLM } from "@/lib/llm/text-llm";
 // older pinned 2.0-flash family for this key.
 const MODEL = "gemini-flash-lite-latest";
 
+// Screening-call mode (branch experiment, see docs/deploy.md branch note):
+// LLM generates only the 2 non-technical fit questions; the fixed
+// "introduce yourself" opener is prepended in code, not generated.
+const SCREENING_INTRO_QUESTION: Question = {
+  text: "To start, could you introduce yourself and walk me through your background?",
+};
+
 const questionsSchema = {
   type: Type.OBJECT,
   properties: {
     questions: {
       type: Type.ARRAY,
+      minItems: 2,
+      maxItems: 2,
       items: {
         type: Type.OBJECT,
         properties: {
@@ -108,12 +117,15 @@ export class GeminiTextLLM implements TextLLM {
             parts: [
               {
                 text:
-                  "You are an experienced technical interviewer. Given the job " +
-                  "description below, generate 5-7 role-specific interview " +
-                  "questions that probe the skills and experience this role " +
-                  "actually needs. For each question, optionally include 1-3 " +
-                  "short follow-up hints (things a strong interviewer would " +
-                  "probe deeper on if the candidate's answer is shallow).\n\n" +
+                  "You are conducting a first-round recruiter screening call, " +
+                  "not a technical interview. Given the job description below, " +
+                  "write exactly 2 screening questions that check the " +
+                  "candidate's overall fit and compatibility with the role — " +
+                  "motivation for the role, relevant past experience at a high " +
+                  "level, alignment with the responsibilities and seniority " +
+                  "described. Do NOT ask technical, system-design, or coding " +
+                  "questions. Keep each question conversational, the way a " +
+                  "recruiter (not an engineer) would ask it.\n\n" +
                   `Job description:\n"""\n${jd}\n"""`,
               },
             ],
@@ -130,7 +142,7 @@ export class GeminiTextLLM implements TextLLM {
     if (!parsed.questions || !Array.isArray(parsed.questions)) {
       throw new Error("Gemini response did not contain a questions array.");
     }
-    return parsed.questions;
+    return [SCREENING_INTRO_QUESTION, ...parsed.questions];
   }
 
   async scoreTranscript(transcript: Turn[], jd: string): Promise<Feedback> {
@@ -145,14 +157,18 @@ export class GeminiTextLLM implements TextLLM {
             parts: [
               {
                 text:
-                  "You are an experienced technical interviewer scoring a " +
-                  "finished mock interview transcript against the job " +
-                  "description below. Score holistically 0-100 considering " +
-                  "three dimensions: (1) communication — clarity, structure, " +
-                  "concision; (2) technical depth — correctness, specificity, " +
-                  "evidence of real experience; (3) problem-solving structure " +
-                  "— clarifying assumptions, breaking the problem down, " +
-                  "discussing trade-offs. Return exactly 3 comment bullets, " +
+                  "You are a recruiter scoring a finished first-round " +
+                  "screening call transcript against the job description " +
+                  "below. This was a non-technical call — score holistically " +
+                  "0-100 considering three dimensions: (1) communication — " +
+                  "clarity, structure, concision; (2) role & culture fit — " +
+                  "motivation for the role, alignment with the " +
+                  "responsibilities and team/mission as expressed in their " +
+                  "answers; (3) experience relevance — how well their " +
+                  "described background maps to what this role needs, at a " +
+                  "high level. Do NOT evaluate technical depth, coding " +
+                  "ability, or system-design skill — none of that was " +
+                  "assessed in this call. Return exactly 3 comment bullets, " +
                   "one per dimension, each a single concise sentence.\n\n" +
                   `Job description:\n"""\n${jd}\n"""\n\n` +
                   `Transcript:\n"""\n${transcriptToText(transcript)}\n"""`,

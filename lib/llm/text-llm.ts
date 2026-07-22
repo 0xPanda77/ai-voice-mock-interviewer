@@ -20,11 +20,17 @@ export interface TextLLM {
 
 // --- Scoring rubric (decided here per PRD §15 open question) ---------------
 //
-// Three fixed dimensions, scored holistically into a single 0-100 score:
+// Three fixed dimensions, scored holistically into a single 0-100 score.
+//
+// screening-call-mode branch: swapped the technical-interview dimensions
+// for first-round-screening-call ones (see gemini-text-llm.ts's scoring
+// prompt for the exact wording fed to the model):
 //   1. Communication — clarity, structure of delivery, concision.
-//   2. Technical depth — correctness, specificity, evidence of real experience.
-//   3. Problem-solving structure — how the candidate approaches the question
-//      (e.g. clarifying assumptions, breaking down the problem, trade-offs).
+//   2. Role & culture fit — motivation for the role, alignment with the
+//      responsibilities and team/mission as expressed in their answers.
+//   3. Experience relevance — how well their described background maps to
+//      what this role needs, at a high level (NOT technical depth/coding/
+//      system-design — this is a non-technical screening call).
 //
 // The model returns ONE overall score (0-100) and a tier derived from it:
 //   85-100 "Strong hire", 70-84 "Hire", 50-69 "Borderline", 0-49 "No hire".
