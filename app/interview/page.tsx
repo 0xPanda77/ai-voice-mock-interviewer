@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Feedback, Question, Turn } from "@/lib/types";
 import { fetchQuestions, fetchScore } from "@/lib/api-client";
-import { SiteFooter, SiteHeader } from "../site-chrome";
+import { GITHUB_URL, SiteFooter, SiteHeader } from "../site-chrome";
 import { connectRelay, base64ToArrayBuffer, type RelayClient } from "./lib/relay-client";
 import { startMicCapture, type MicCapture } from "./lib/mic-capture";
 import { createAudioPlayer, type AudioPlayer } from "./lib/audio-playback";
@@ -153,6 +153,33 @@ function VoiceOrb({
       <span className="type-caption text-muted" role="status">
         {label}
       </span>
+    </div>
+  );
+}
+
+// Error display with free-quota awareness. We can't query Gemini's remaining
+// quota, but when a call fails because of it the server (see lib/quota-error.ts)
+// — or Gemini's own passed-through message, for relay/voice errors — will
+// mention "quota", and that's the cue to offer the self-serve escape hatch:
+// run it locally on your own free key.
+function ErrorNote({ message }: { message: string }) {
+  const quotaHit = /quota/i.test(message);
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="type-body-sm text-error">{message}</p>
+      {quotaHit && (
+        <p className="type-body-sm text-muted">
+          <a
+            href={`${GITHUB_URL}#running-locally`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-ink underline underline-offset-4 hover:text-primary transition-colors"
+          >
+            Clone the repo and run it locally
+          </a>{" "}
+          with your own free Gemini key — five-minute setup.
+        </p>
+      )}
     </div>
   );
 }
@@ -700,9 +727,7 @@ export default function VoicePage() {
               </button>
             )}
           </div>
-          {questionsError && (
-            <p className="type-body-sm text-error">{questionsError}</p>
-          )}
+          {questionsError && <ErrorNote message={questionsError} />}
           {/* Questions are intentionally not shown here — a mock interview
               shouldn't hand the user the script in advance. May resurface
               (e.g. topics-only) later; for now just hidden. */}
@@ -778,9 +803,7 @@ export default function VoicePage() {
                 End session
               </button>
             </div>
-            {voiceError && (
-              <p className="type-body-sm text-error">{voiceError}</p>
-            )}
+            {voiceError && <ErrorNote message={voiceError} />}
 
             {/* Product chrome, not a marketing illustration — the live
                 transcript sits on a dark surface like the rest of the
@@ -826,7 +849,7 @@ export default function VoicePage() {
             )}
             {scoreError && (
               <div className="flex flex-col gap-2">
-                <p className="type-body-sm text-error">{scoreError}</p>
+                <ErrorNote message={scoreError} />
                 <p className="type-caption text-muted">
                   Your transcript is safe (above, and saved) — you can retry
                   scoring.

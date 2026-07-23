@@ -3,6 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { getTextLLM } from "@/lib/llm/text-llm";
+import { isQuotaError, QUOTA_ERROR_MESSAGE } from "@/lib/quota-error";
 import type { Question } from "@/lib/types";
 
 const MIN_JD_LENGTH = 40;
@@ -64,6 +65,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ questions });
   } catch (err) {
     console.error("[/api/questions] failed:", err);
+    if (isQuotaError(err)) {
+      return NextResponse.json({ error: QUOTA_ERROR_MESSAGE }, { status: 429 });
+    }
     const message =
       err instanceof Error ? err.message : "Unknown error generating questions.";
     return NextResponse.json(
