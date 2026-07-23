@@ -1,53 +1,45 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { GITHUB_URL, SiteFooter, SiteHeader } from "./site-chrome";
 
-// Landing page — describes the product and its user journey. The actual
-// product lives at /interview (JD -> questions -> live voice interview ->
-// scored feedback); this page's only job is to get a visitor to understand
-// that flow in one scroll and start it.
+// Landing page — the actual product lives at /interview. This page's only
+// job: a visitor understands "paste a JD, do a voice interview, get
+// feedback" within five seconds and clicks Start. One centered hero, three
+// steps, nothing else.
 
-const JOURNEY_STEPS = [
+const STEPS = [
   {
-    n: "01",
-    title: "Paste the job description",
-    body: "Drop in any real job posting you're preparing for. No account, no setup — the page is ready the moment you land on it.",
+    n: "1",
+    title: "Paste a job description",
+    body: "Any real posting works.",
   },
   {
-    n: "02",
-    title: "Get role-specific questions",
-    body: "An LLM reads the JD and writes questions a recruiter would actually ask for this exact role, not a generic top-10 list.",
+    n: "2",
+    title: "Do the interview",
+    body: "Answer out loud, live.",
   },
   {
-    n: "03",
-    title: "Answer out loud, live",
-    body: "A real-time voice session, not a chatbox. The interviewer speaks first, listens while you answer, and follows up the way a person would.",
-  },
-  {
-    n: "04",
-    title: "Get scored feedback",
-    body: "The moment you hang up: a score, a tier, and three specific, honest notes on how you actually came across.",
+    n: "3",
+    title: "Get your feedback",
+    body: "A score and honest notes.",
   },
 ];
 
-const FEATURES = [
-  {
-    title: "No backspace",
-    body: "Speaking under pressure with no time to edit is the actual skill a screening call tests. Typing into a chatbox never rehearses that.",
-  },
-  {
-    title: "Real turn-taking",
-    body: "Native speech-to-speech, not a speech-to-text-to-chatbot pipeline. The model handles interruptions and pauses the way a live interviewer does.",
-  },
-  {
-    title: "Private by default",
-    body: "No accounts, no server-side storage of your sessions. Everything lives in your browser until you close the tab.",
-  },
+// The logo's four-bar waveform, scaled up and animated — the one decorative
+// element on the page. Heights/delays are hand-tuned for an organic pulse.
+const HERO_BARS = [
+  { h: 16, d: 0.0 },
+  { h: 32, d: 0.5 },
+  { h: 48, d: 0.2 },
+  { h: 24, d: 0.7 },
+  { h: 40, d: 0.35 },
+  { h: 28, d: 0.9 },
+  { h: 18, d: 0.55 },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col">
-      {/* --- Top nav --- */}
+    <div className="flex flex-col min-h-screen">
       <SiteHeader
         right={
           <>
@@ -59,10 +51,9 @@ export default function LandingPage() {
             >
               GitHub
             </a>
-            <Link
-              href="/interview"
-              className="inline-flex items-center justify-center h-10 px-5 rounded-md bg-primary text-on-primary type-body-sm font-medium hover:bg-primary-active transition-colors"
-            >
+            {/* Hidden on small screens — the hero CTA is immediately below,
+                and a nowrap button here would force horizontal overflow. */}
+            <Link href="/interview" className="btn btn-primary hidden sm:inline-flex">
               Start a mock interview
             </Link>
           </>
@@ -70,131 +61,78 @@ export default function LandingPage() {
       />
 
       {/* --- Hero --- */}
-      <section className="bg-canvas">
-        <div className="max-w-[1200px] mx-auto px-6 py-24 grid md:grid-cols-2 gap-12 items-center">
-          <div className="flex flex-col gap-6">
-            <span className="self-start type-caption-upper text-muted bg-surface-card rounded-full px-3 py-1">
-              Live voice, not another chatbot
-            </span>
-            <h1 className="type-display-xl text-ink">
-              Practice the call before it counts.
+      <main className="relative flex-1 flex flex-col overflow-hidden">
+        {/* Soft coral glow behind the hero — atmosphere, not a section. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[520px] w-[760px] max-w-none rounded-full"
+          style={{
+            background:
+              "radial-gradient(closest-side, rgba(204, 120, 92, 0.12), transparent 70%)",
+          }}
+        />
+
+        <section className="relative flex-1 flex flex-col items-center justify-center text-center px-6 pt-24 pb-16">
+          <div className="flex flex-col items-center gap-7 max-w-[720px]">
+            {/* Animated waveform — the wordmark, alive. */}
+            <div
+              aria-hidden="true"
+              className="rise rise-1 flex items-center gap-[7px] h-12"
+            >
+              {HERO_BARS.map((bar, i) => (
+                <span
+                  key={i}
+                  className="wave-bar w-[7px] bg-primary"
+                  style={{ height: bar.h, animationDelay: `${bar.d}s` }}
+                />
+              ))}
+            </div>
+
+            <h1 className="rise rise-2 type-display-xl text-ink">
+              Practice your next interview out loud.
             </h1>
-            <p className="type-body-md text-body max-w-md">
-              Paste a job description. Answer real, role-specific questions
-              out loud to an AI interviewer that talks back — no backspace,
-              no rehearsed script. Get honest feedback the moment you hang
-              up.
+
+            <p className="rise rise-2 type-body-md text-body max-w-[520px]">
+              Paste a job description, do a live voice interview with an AI
+              interviewer, and get honest feedback the moment you hang up.
             </p>
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Link
-                href="/interview"
-                className="inline-flex items-center justify-center h-10 px-5 rounded-md bg-primary text-on-primary type-body-sm font-medium hover:bg-primary-active transition-colors"
-              >
+
+            <div className="rise rise-3 flex flex-col items-center gap-3 pt-2">
+              <Link href="/interview" className="btn btn-primary btn-lg">
                 Start a mock interview
               </Link>
-              <a
-                href="#how-it-works"
-                className="type-body-sm text-ink underline underline-offset-4"
-              >
-                How it works ↓
-              </a>
-            </div>
-          </div>
-
-          {/* A live look at what a session actually sounds/reads like —
-              product chrome, not a stock illustration. */}
-          <div className="bg-surface-dark rounded-xl p-6 flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-success" />
-              <span className="type-caption text-on-dark-soft font-mono">
-                in-session · 12:41 left
+              <span className="type-caption text-muted-soft">
+                No account · Runs in your browser
               </span>
             </div>
-            <div className="flex flex-col gap-3 type-body-sm text-on-dark">
-              <p>
-                <span className="font-semibold text-primary">
-                  Interviewer:
-                </span>{" "}
-                What drew you to this role, and how does it line up with
-                where you want your career to go?
-              </p>
-              <p className="text-on-dark-soft">
-                <span className="font-semibold text-on-dark">Me:</span> So
-                I&apos;ve been building full-stack for about eight years,
-                mostly in TypeScript and React...
-              </p>
-            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* --- User journey --- */}
-      <section id="how-it-works" className="bg-surface-soft">
-        <div className="max-w-[1200px] mx-auto px-6 py-24 flex flex-col gap-12">
-          <div className="flex flex-col gap-3 max-w-xl">
-            <span className="type-caption-upper text-muted">The flow</span>
-            <h2 className="type-display-md text-ink">
-              One conversation, four steps.
-            </h2>
-            <p className="type-body-md text-body">
-              From a job posting to spoken feedback, in one sitting — no
-              context-switching between tools.
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {JOURNEY_STEPS.map((step) => (
-              <div
-                key={step.n}
-                className="bg-surface-card rounded-lg p-8 flex flex-col gap-3"
-              >
-                <span className="type-display-sm text-primary">
-                  {step.n}
-                </span>
-                <h3 className="type-title-md text-ink">{step.title}</h3>
-                <p className="type-body-sm text-body">{step.body}</p>
-              </div>
+        {/* --- Three steps --- */}
+        <section className="relative border-t border-hairline-soft">
+          <div className="rise rise-4 max-w-[900px] mx-auto px-6 py-14 flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-5">
+            {STEPS.map((step, i) => (
+              <Fragment key={step.n}>
+                {i > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="type-body-md text-muted-soft rotate-90 sm:rotate-0"
+                  >
+                    →
+                  </span>
+                )}
+                <div className="flex flex-col items-center text-center gap-2 sm:w-56">
+                  <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 text-primary type-caption font-semibold">
+                    {step.n}
+                  </span>
+                  <h2 className="type-title-sm text-ink">{step.title}</h2>
+                  <p className="type-caption text-muted">{step.body}</p>
+                </div>
+              </Fragment>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* --- Why voice --- */}
-      <section className="bg-canvas">
-        <div className="max-w-[1200px] mx-auto px-6 py-24 flex flex-col gap-12">
-          <div className="flex flex-col gap-3 max-w-xl">
-            <span className="type-caption-upper text-muted">
-              Why voice, not text
-            </span>
-            <h2 className="type-display-md text-ink">
-              A chatbox rehearses content. This rehearses you.
-            </h2>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="flex flex-col gap-3">
-                <h3 className="type-title-md text-ink">{f.title}</h3>
-                <p className="type-body-sm text-body">{f.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* --- Coral CTA band --- */}
-      <section className="max-w-[1200px] mx-auto w-full px-6 py-16">
-        <div className="bg-primary rounded-lg px-8 py-16 flex flex-col items-start gap-6">
-          <h2 className="type-display-sm text-on-primary max-w-lg">
-            Your next screening call is coming. Walk in already having done
-            this once.
-          </h2>
-          <Link
-            href="/interview"
-            className="inline-flex items-center justify-center h-10 px-5 rounded-md bg-canvas text-ink type-body-sm font-medium hover:bg-surface-soft transition-colors"
-          >
-            Start a mock interview
-          </Link>
-        </div>
-      </section>
+        </section>
+      </main>
 
       <SiteFooter />
     </div>

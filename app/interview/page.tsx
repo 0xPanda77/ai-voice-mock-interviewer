@@ -660,7 +660,7 @@ export default function VoicePage() {
             <h2 className="type-title-lg text-ink">Job description</h2>
           </div>
           <textarea
-            className="w-full min-h-[160px] rounded-md border border-hairline bg-canvas p-4 type-body-sm text-ink placeholder:text-muted-soft focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary disabled:opacity-60"
+            className="w-full min-h-[180px] rounded-lg border border-hairline bg-white p-4 type-body-sm text-ink shadow-[0_1px_2px_rgba(20,20,19,0.04)] placeholder:text-muted-soft focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary disabled:opacity-60 transition-shadow"
             placeholder="Paste the full job description here..."
             value={jd}
             onChange={(e) => setJd(e.target.value)}
@@ -668,7 +668,7 @@ export default function VoicePage() {
           />
           <div className="flex flex-wrap gap-3">
             <button
-              className="self-start h-10 px-5 rounded-md bg-primary text-on-primary type-body-sm font-medium hover:bg-primary-active disabled:bg-primary-disabled disabled:text-muted transition-colors"
+              className="self-start btn btn-primary"
               onClick={handleContinueToInterview}
               disabled={
                 stage === "questions-loading" ||
@@ -680,7 +680,7 @@ export default function VoicePage() {
               {stage === "questions-loading" ? "Generating..." : "Continue to interview"}
             </button>
             <button
-              className="self-start h-10 px-5 rounded-md border border-hairline bg-canvas text-ink type-body-sm font-medium hover:bg-surface-soft disabled:opacity-50 transition-colors"
+              className="self-start btn btn-secondary"
               onClick={handleUseExampleJd}
               disabled={stage === "questions-loading" || stage === "voice" || stage === "scoring"}
               title="Load an example job description and its matching questions"
@@ -692,7 +692,7 @@ export default function VoicePage() {
               stage === "scoring" ||
               stage === "scored") && (
               <button
-                className="self-start h-10 px-5 rounded-md border border-hairline bg-canvas text-ink type-body-sm font-medium hover:bg-surface-soft disabled:opacity-50 transition-colors"
+                className="self-start btn btn-secondary"
                 onClick={handleStartOver}
                 disabled={stage === "voice" || stage === "scoring"}
               >
@@ -753,7 +753,7 @@ export default function VoicePage() {
 
             <div className="flex gap-3">
               <button
-                className="self-start h-10 px-5 rounded-md border border-hairline bg-canvas text-ink type-body-sm font-medium hover:bg-surface-soft disabled:opacity-50 transition-colors"
+                className="self-start btn btn-secondary"
                 onClick={handleBackToJobDescription}
                 disabled={
                   voiceStatus === "connecting" ||
@@ -764,14 +764,14 @@ export default function VoicePage() {
                 Back to job description
               </button>
               <button
-                className="self-start h-10 px-5 rounded-md bg-primary text-on-primary type-body-sm font-medium hover:bg-primary-active disabled:bg-primary-disabled disabled:text-muted transition-colors"
+                className="self-start btn btn-primary"
                 onClick={handleStartVoiceSession}
                 disabled={!canStartVoice}
               >
                 Start voice session
               </button>
               <button
-                className="self-start h-10 px-5 rounded-md border border-hairline bg-canvas text-ink type-body-sm font-medium hover:bg-surface-soft disabled:opacity-50 transition-colors"
+                className="self-start btn btn-secondary"
                 onClick={handleEndSession}
                 disabled={voiceStatus !== "in-session" && voiceStatus !== "ready"}
               >
@@ -832,7 +832,7 @@ export default function VoicePage() {
                   scoring.
                 </p>
                 <button
-                  className="self-start h-10 px-5 rounded-md border border-hairline bg-canvas text-ink type-body-sm font-medium hover:bg-surface-soft transition-colors"
+                  className="self-start btn btn-secondary"
                   onClick={handleRetryScore}
                 >
                   Retry scoring
@@ -840,12 +840,17 @@ export default function VoicePage() {
               </div>
             )}
             {feedback && (
-              <div className="bg-surface-card rounded-lg p-6 flex flex-col gap-3">
-                <p className="type-body-sm text-ink">
-                  <span className="font-semibold">Score:</span> {feedback.score}
-                  /100 &middot; <span className="font-semibold">Tier:</span>{" "}
-                  {feedback.tier}
-                </p>
+              <div className="bg-surface-card rounded-lg p-8 flex flex-col gap-5">
+                <div className="flex items-baseline gap-2">
+                  <span className="type-display-md text-primary tabular-nums">
+                    {feedback.score}
+                  </span>
+                  <span className="type-body-sm text-muted">/100</span>
+                  <span className="ml-auto self-center rounded-full bg-primary/10 text-primary px-3 py-1 type-caption">
+                    {feedback.tier}
+                  </span>
+                </div>
+                <div className="h-px bg-hairline" />
                 <ul
                   data-testid="feedback-comments"
                   className="list-disc list-inside type-body-sm text-body flex flex-col gap-1"
@@ -857,7 +862,7 @@ export default function VoicePage() {
               </div>
             )}
             <button
-              className="self-start h-10 px-5 rounded-md border border-hairline bg-canvas text-ink type-body-sm font-medium hover:bg-surface-soft transition-colors"
+              className="self-start btn btn-secondary"
               onClick={handleTryAgain}
             >
               Start over

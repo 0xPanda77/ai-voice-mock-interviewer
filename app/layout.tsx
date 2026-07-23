@@ -22,8 +22,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistMono.variable} antialiased`}>{children}</body>
+    // The font variable class must live on <html> (the `:root` element), not
+    // <body>: Tailwind v4's @theme emits `--font-sans: var(--font-geist-mono)`
+    // as a :root custom property, and custom properties resolve their var()
+    // references where they're *defined* — with the variable only on <body>,
+    // --font-sans computes to invalid at :root and the whole site silently
+    // falls back to the system sans stack.
+    <html lang="en" className={geistMono.variable}>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

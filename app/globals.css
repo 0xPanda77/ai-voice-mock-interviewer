@@ -148,6 +148,118 @@ button:not(:disabled),
   line-height: 1.6;
 }
 
+/* --- Shared button system --- one place for the primary/secondary button
+   look (hover lift, focus ring, disabled states) so the landing page and
+   /interview can't drift apart. Sized/tinted from the same tokens above.
+   Lives in @layer components (not unlayered) so Tailwind utilities like
+   `hidden` can still override e.g. the display property. */
+@layer components {
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.btn-lg {
+  height: 52px;
+  padding: 0 32px;
+  font-size: 15px;
+  border-radius: var(--radius-lg);
+}
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow:
+    0 1px 2px rgba(20, 20, 19, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-active);
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 16px rgba(204, 120, 92, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.1);
+}
+.btn-primary:disabled {
+  background: var(--color-primary-disabled);
+  color: var(--color-muted);
+  box-shadow: none;
+}
+.btn-secondary {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline);
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.04);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-surface-soft);
+  border-color: var(--color-muted-soft);
+  transform: translateY(-1px);
+}
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(0);
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
+}
+
+/* --- Entrance animation --- one orchestrated page-load rise for the hero
+   (staggered via .rise-1..4), not scattered scroll effects. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise-in 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.rise-1 { animation-delay: 0.05s; }
+.rise-2 { animation-delay: 0.15s; }
+.rise-3 { animation-delay: 0.25s; }
+.rise-4 { animation-delay: 0.4s; }
+
+/* --- Hero waveform --- the logo's four-bar mark, scaled up and breathing.
+   Per-bar height/delay come from the component; this just supplies the
+   shared pulse. */
+@keyframes wave-bar-pulse {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+.wave-bar {
+  transform-origin: center;
+  border-radius: 999px;
+  animation: wave-bar-pulse 1.6s ease-in-out infinite;
+}
+
 /* --- Voice orb (step 2's "something is alive and listening" cue) ---
    A breathing core + expanding rings, both driven by plain CSS animation
    rather than JS-per-frame — cheap, and state (idle/speaking) is expressed
@@ -181,5 +293,21 @@ button:not(:disabled),
   .type-display-lg {
     font-size: 32px;
     letter-spacing: -0.6px;
+  }
+}
+
+/* Reduced motion: kill every decorative animation (entrance rise, waveform,
+   voice orb) — state is always also conveyed by text/color, never motion
+   alone. */
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .wave-bar,
+  .voice-orb-core,
+  .voice-orb-ring {
+    animation: none !important;
+  }
+  .btn,
+  .btn:hover {
+    transform: none !important;
   }
 }
