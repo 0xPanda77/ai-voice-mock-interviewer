@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 // Full-monospace direction (deliberate deviation from the design brief's
@@ -29,7 +30,10 @@ export default function RootLayout({
     // --font-sans computes to invalid at :root and the whole site silently
     // falls back to the system sans stack.
     <html lang="en" className={geistMono.variable}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
